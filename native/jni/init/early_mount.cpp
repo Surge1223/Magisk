@@ -104,10 +104,6 @@ bool MagiskInit::read_dt_fstab(const char *name, char *partname, char *fstype) {
 	return false;
 }
 
-static char partname[32];
-static char fstype[32];
-static char block_dev[64];
-
 #define link_root(name) \
 if (is_lnk("/system_root" name)) \
 	cp_afc("/system_root" name, name)
@@ -122,7 +118,11 @@ if (!is_lnk("/" #name) && read_dt_fstab(#name, partname, fstype)) { \
 }
 
 void LegacyInit::early_mount() {
-	full_read("/init", self.buf, self.sz);
+	char partname[32];
+	char fstype[32];
+	char block_dev[64];
+
+	full_read("/init", &self.buf, &self.sz);
 
 	LOGD("Reverting /init\n");
 	root = xopen("/", O_RDONLY | O_CLOEXEC);
@@ -135,11 +135,15 @@ void LegacyInit::early_mount() {
 }
 
 void SARCompatInit::early_mount() {
-	full_read("/init", self.buf, self.sz);
+	char partname[32];
+	char fstype[32];
+	char block_dev[64];
+
+	full_read("/init", &self.buf, &self.sz);
 
 	LOGD("Cleaning rootfs\n");
 	root = xopen("/", O_RDONLY | O_CLOEXEC);
-	frm_rf(root, { ".backup", "overlay", "overlay.d", "proc", "sys" });
+	frm_rf(root, { ".backup", "overlay", "proc", "sys" });
 
 	LOGD("Early mount system_root\n");
 	sprintf(partname, "system%s", cmd->slot);
@@ -183,24 +187,17 @@ static void switch_root(const string &path) {
 	chroot(".");
 }
 
-void SARCommon::backup_files() {
-	if (access("/overlay.d", F_OK) == 0)
-		cp_afc("/overlay.d", "/dev/overlay.d");
-
-	full_read("/init", self.buf, self.sz);
-	full_read("/.backup/.magisk", config.buf, config.sz);
-}
-
 void SARInit::early_mount() {
-	// Make dev writable
-	xmkdir("/dev", 0755);
-	xmount("tmpfs", "/dev", "tmpfs", 0, "mode=755");
+	char partname[32];
+	char fstype[32];
+	char block_dev[64];
 
-	backup_files();
+	full_read("/init", &self.buf, &self.sz);
+	full_read("/.backup/.magisk", &config.buf, &config.sz);
 
 	LOGD("Cleaning rootfs\n");
 	int root = xopen("/", O_RDONLY | O_CLOEXEC);
-	frm_rf(root, { "proc", "sys", "dev" });
+	frm_rf(root, { "proc", "sys" });
 	close(root);
 
 	LOGD("Early mount system_root\n");
@@ -211,6 +208,9 @@ void SARInit::early_mount() {
 		xmount("/dev/root", "/system_root", "erofs", MS_RDONLY, nullptr);
 	switch_root("/system_root");
 
+	// Make dev writable
+	xmount("tmpfs", "/dev", "tmpfs", 0, "mode=755");
+
 	mount_root(vendor);
 	mount_root(product);
 	mount_root(odm);
@@ -219,10 +219,10 @@ void SARInit::early_mount() {
 void SecondStageInit::early_mount() {
 	// Early mounts should already be done by first stage init
 
-	backup_files();
+	full_read("/system/bin/init", &self.buf, &self.sz);
+	full_read("/.backup/.magisk", &config.buf, &config.sz);
 	rm_rf("/system");
 	rm_rf("/.backup");
-	rm_rf("/overlay.d");
 
 	// Find system_dev
 	parse_mnt("/proc/mounts", [&](mntent *me) -> bool {

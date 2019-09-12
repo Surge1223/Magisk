@@ -1,8 +1,8 @@
 #include <magisk.h>
 #include <selinux.h>
 
-constexpr char magiskrc[] =
-"\n"
+constexpr const char magiskrc[] =
+"\n\n"
 
 "on post-fs-data\n"
 "    start logd\n"

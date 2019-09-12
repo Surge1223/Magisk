@@ -109,12 +109,6 @@ static void main_daemon() {
 	restore_rootcon();
 
 	// Unmount pre-init patches
-	if (access(ROOTMNT, F_OK) == 0) {
-		file_readline(ROOTMNT, [](auto line) -> bool {
-			umount2(line.data(), MNT_DETACH);
-			return true;
-		}, true);
-	}
 
 	int fd = xopen("/dev/null", O_RDWR | O_CLOEXEC);
 	xdup2(fd, STDOUT_FILENO);
