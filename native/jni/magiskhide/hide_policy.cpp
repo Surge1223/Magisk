@@ -16,7 +16,7 @@ static const char *prop_key[] =
 
 static const char *prop_value[] =
 		{ "locked", "green", "1",
-		  "enforcing", "0", "0", "0",
+		  "enforcing", "0", "0", "1",
 		  "1", "user", "release-keys", "0", nullptr };
 
 void hide_sensitive_props() {
